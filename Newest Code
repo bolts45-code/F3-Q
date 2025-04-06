@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>F3 "Q" Workout Planner</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+      /* Load Lucide Icons font */
+      @font-face {
+        font-family: 'LucideIcons';
+        src: url(https://cdn.jsdelivr.net/npm/lucide-static@latest/font/lucide.ttf) format('truetype');
+      }
+      /* Base style for Lucide Icons */
+      .lucide {
+        font-family: 'LucideIcons';
+        font-style: normal;
+        font-weight: normal;
+        line-height: 1;
+        letter-spacing: normal;
+        text-transform: none;
+        display: inline-block;
+        white-space: nowrap;
+        word-wrap: normal;
+        direction: ltr;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        text-rendering: optimizeLegibility;
+        font-feature-settings: "liga";
+      }
+      /* Style for JS-controlled tooltip */
+      #js-tooltip {
+        position: absolute;
+        background-color: #1f2937; /* gray-800 */
+        color: #e5e7eb; /* gray-200 */
+        border: 1px solid #374151; /* gray-700 */
+        padding: 6px 12px;
+        border-radius: 6px; /* rounded-md */
+        font-size: 0.85em;
+        white-space: nowrap;
+        z-index: 50;
+        pointer-events: none; /* Tooltip shouldn't interfere with clicks */
+        transition: opacity 0.2s;
+      }
+      /* Style for copy button feedback */
+      .copied-feedback {
+          background-image: linear-gradient(to right, #10b981, #22c55e) !important; /* Green gradient */
+      }
+      .copy-failed-feedback {
+          background-image: linear-gradient(to right, #ef4444, #dc2626) !important; /* Red gradient */
+      }
+      /* Style for clickable exercises (for tooltip and replacement) */
+      .clickable-exercise {
+          cursor: pointer;
+          border-bottom: 1px dashed rgba(96, 165, 250, 0.5); /* Dashed blue underline */
+          padding-bottom: 1px;
+          transition: border-color 0.2s ease-in-out;
+      }
+       .clickable-exercise:hover {
+           border-bottom-color: rgba(96, 165, 250, 1); /* Solid blue on hover */
+       }
+      /* Style for the replace icon within clickable exercises */
+      .clickable-exercise .lucide {
+          opacity: 0;
+          transition: opacity 0.2s ease-in-out;
+          font-size: 0.9em;
+          vertical-align: middle;
+          margin-left: 4px;
+      }
+      .clickable-exercise:hover .lucide {
+          opacity: 0.8; /* Show icon on hover */
+      }
+      /* Style for no replacement feedback (flash red) */
+      .no-replace-flash {
+          transition: background-color 0.1s ease-in-out;
+          background-color: rgba(239, 68, 68, 0.3) !important; /* Light red flash */
+          border-radius: 4px; /* rounded-sm */
+      }
+      /* Style for hover on list items containing exercises */
+      .exercise-list-item:hover {
+        background-color: rgba(55, 65, 81, 0.3); /* Subtle gray background on hover */
+      }
+      /* Custom radio button style */
+      input[type="radio"]:checked + label {
+        border-color: #60a5fa; /* blue-400 */
+        background-color: rgba(96, 165, 250, 0.2);
+      }
+      /* Styling for Reps/Time button and input */
+      .rep-time-controls {
+        display: inline-flex; /* Changed from inline-block for better alignment */
+        align-items: center;
+        margin-left: 0.75rem; /* ml-3 */
+      }
+      .rep-time-btn {
+        padding: 0.125rem 0.5rem; /* py-0.5 px-2 */
+        font-size: 0.75rem; /* text-xs */
+        border-radius: 0.375rem; /* rounded-md */
+        background-color: #4b5563; /* bg-gray-600 */
+        color: #e5e7eb; /* text-gray-200 */
+        transition: background-color 0.15s ease-in-out;
+        white-space: nowrap; /* Prevent wrapping */
+      }
+      .rep-time-btn:hover {
+        background-color: #6b7280; /* hover:bg-gray-500 */
+      }
+      .rep-time-input {
+        margin-left: 0.25rem; /* ml-1 */
+        padding: 0.125rem 0.25rem; /* py-0.5 px-1 */
+        font-size: 0.75rem; /* text-xs */
+        border-radius: 0.375rem; /* rounded-md */
+        background-color: #374151; /* bg-gray-700 */
+        border: 1px solid #4b5563; /* border border-gray-600 */
+        width: 5rem; /* w-20 */
+        color: #e5e7eb; /* text-gray-200 */
+      }
+      .rep-time-input::placeholder {
+          color: #9ca3af; /* placeholder-gray-400 */
+      }
+      /* Ensure list items can accommodate the controls */
+      .exercise-list-item {
+          display: flex;
+          justify-content: space-between; /* Pushes controls to the right */
+          align-items: center;
+          flex-wrap: wrap; /* Allow wrapping on small screens */
+      }
+       .exercise-list-item > span:first-of-type { /* Target the exercise name span */
+           margin-right: auto; /* Keep name pushed left */
+           padding-right: 8px; /* Add some space */
+       }
+
+       /* --- Section Color Styling --- */
+       div[data-section] {
+           border-width: 2px; border-style: solid;
+       }
+       div[data-section="disclaimer"] { border-color: #f59e0b; }
+       div[data-section="disclaimer"] h2 { color: #fcd34d; }
+       div[data-section="disclaimer"] h2 .lucide { color: #fcd34d !important; }
+       div[data-section="warmup"] { border-color: #10b981; }
+       div[data-section="warmup"] h2 { color: #6ee7b7; }
+       div[data-section="warmup"] h2 .lucide { color: #6ee7b7 !important; }
+       div[data-section="thang1"] { border-color: #f43f5e; }
+       div[data-section="thang1"] h2 { color: #fda4af; }
+       div[data-section="thang1"] h2 .lucide { color: #fda4af !important; }
+       div[data-section="thang2"] { border-color: #6366f1; }
+       div[data-section="thang2"] h2 { color: #a5b4fc; }
+       div[data-section="thang2"] h2 .lucide { color: #a5b4fc !important; }
+       div[data-section="mary"] { border-color: #eab308; }
+       div[data-section="mary"] h2 { color: #fde047; }
+       div[data-section="mary"] h2 .lucide { color: #fde047 !important; }
+       div[data-section="cot"] { border-color: #0ea5e9; }
+       div[data-section="cot"] h2 { color: #7dd3fc; }
+       div[data-section="cot"] h2 .lucide { color: #7dd3fc !important; }
+       /* --- End Section Color Styling --- */
+
+       /* Styling for the inline exercise library list */
+       #exercise-library-output ul {
+           list-style: none; padding-left: 0; margin-bottom: 1.5rem; /* Add space below each list */
+       }
+       #exercise-library-output li {
+            border-bottom: 1px solid #4b5563; /* gray-600 */
+            padding-bottom: 0.5rem; /* pb-2 */
+            margin-bottom: 0.5rem; /* mb-2 */
+            display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;
+       }
+        #exercise-library-output li span:first-child { margin-right: 1rem; }
+        #exercise-library-output li span:last-child { flex-shrink: 0; }
+       /* Styling for library subheadings */
+       #full-library-list h3 {
+           font-size: 1.25rem; /* text-xl */
+           font-weight: 600; /* font-semibold */
+           margin-top: 1rem; /* mt-4 */
+           margin-bottom: 0.75rem; /* mb-3 */
+           padding-bottom: 0.5rem; /* pb-2 */
+           border-bottom: 1px solid #6b7280; /* border-gray-500 */
+           break-after: avoid-column; /* Prevent breaking after heading in columns */
+       }
+       #full-library-list h3.warmup-header { color: #6ee7b7; /* emerald-300 */ border-color: #10b981; /* emerald-500 */ }
+       #full-library-list h3.thang-header { color: #a5b4fc; /* indigo-300 */ border-color: #6366f1; /* indigo-500 */ }
+       #full-library-list h3.mary-header { color: #fde047; /* yellow-300 */ border-color: #eab308; /* yellow-500 */ }
+
+    </style>
+    <script>
+      // Configure Tailwind CSS
+      tailwind.config = { theme: { extend: { fontFamily: { sans: ['Inter', 'sans-serif'] } } } }
+    </script>
+</head>
+<body class="bg-gradient-to-b from-gray-900 to-gray-800 text-gray-200 font-sans p-4 md:p-8 min-h-screen">
+
+    <div id="js-tooltip" class="hidden opacity-0">Tooltip text</div>
+
+    <div class="max-w-3xl mx-auto relative">
+        <header class="text-center mb-10">
+            <h1 class="text-4xl md:text-5xl font-bold text-blue-400 mb-2">F3 "Q" Workout Planner</h1>
+            <p class="text-lg text-gray-400 italic mt-1 mb-3">Fitness, Fellowship, and Faith</p>
+            <p class="text-gray-300 text-lg">Generate a workout structure. Click exercises for info, double-click to replace!</p>
+            <p class="text-sm text-gray-500 mt-2">Location Hints: Stadium, Hills, Beach, Parking Lot, Stairs, Walls, Handrails</p>
+        </header>
+
+        <div id="duration-selector" class="text-center mb-6">
+            <span class="text-lg text-gray-300 mr-4 font-semibold">Workout Duration:</span>
+            <div class="inline-flex rounded-md shadow-sm" role="group">
+                <input type="radio" id="duration-45" name="duration" value="45" class="hidden peer" checked>
+                <label for="duration-45" class="px-4 py-2 text-sm font-medium text-gray-200 bg-gray-700 border border-gray-600 rounded-l-lg cursor-pointer peer-checked:bg-blue-600 peer-checked:border-blue-500 hover:bg-gray-600 hover:text-white transition duration-150 ease-in-out"> 45 Min </label>
+                <input type="radio" id="duration-60" name="duration" value="60" class="hidden peer">
+                <label for="duration-60" class="px-4 py-2 text-sm font-medium text-gray-200 bg-gray-700 border border-gray-600 rounded-r-lg cursor-pointer peer-checked:bg-blue-600 peer-checked:border-blue-500 hover:bg-gray-600 hover:text-white transition duration-150 ease-in-out"> 60 Min </label>
+            </div>
+        </div>
+
+        <div class="text-center mb-10 space-x-2 sm:space-x-4">
+            <button id="generate-btn" class="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-bold py-3 px-6 md:px-8 rounded-lg shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition duration-200 ease-in-out inline-flex items-center"> <span class="lucide mr-2 text-lg">&#xea4c;</span> Generate Workout </button>
+            <button id="copy-btn" class="bg-gradient-to-r from-gray-600 to-gray-700 hover:from-gray-700 hover:to-gray-800 text-white font-bold py-3 px-6 md:px-8 rounded-lg shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition duration-200 ease-in-out inline-flex items-center disabled:opacity-50 disabled:cursor-not-allowed" disabled> <span class="lucide mr-2 text-lg">&#xe913;</span> Copy Workout </button>
+            <button id="library-toggle-btn" class="bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-700 hover:to-teal-800 text-white font-bold py-3 px-6 md:px-8 rounded-lg shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition duration-200 ease-in-out inline-flex items-center"> <span class="lucide mr-2 text-lg">&#xe8b6;</span> <span class="button-text">Exercise Library</span> </button>
+        </div>
+
+        <div id="workout-output" class="space-y-8">
+            <div class="bg-gray-800/80 backdrop-blur-sm p-6 rounded-lg shadow-lg border border-gray-700">
+                <h2 class="text-2xl font-semibold text-blue-300 mb-3 border-b border-gray-600 pb-2 flex items-center"><span class="lucide mr-3 text-xl text-blue-300">&#xe8e5;</span>Workout Plan</h2>
+                <p class="text-gray-300 italic">Select a duration and click the "Generate Workout" button above to create a plan. Remember to adjust reps and timing as needed!</p>
+            </div>
+        </div>
+
+        <div id="exercise-library-output" class="hidden bg-gray-800/80 backdrop-blur-sm p-6 rounded-lg shadow-lg border border-gray-700">
+            <h2 class="text-3xl font-semibold text-teal-300 mb-4 border-b border-gray-600 pb-2 flex items-center"> <span class="lucide mr-3 text-2xl">&#xe8b6;</span> Full Exercise Library (Exicon) </h2>
+            <div id="full-library-list" class="text-gray-300 md:columns-2 lg:columns-3 gap-x-6">
+                <p>Loading library...</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- F3 Exercise Data ---
+        // Array containing all exercise objects
+        const exercises = [
+             // Warm-up (Type: W)
+             { f3Name: "SSH", standardName: "Side Straddle Hop / Jumping Jack", type: "W", locations: ["Parking Lot", "Stadium", "Beach"] },
+             { f3Name: "Imperial Walker", standardName: "Imperial Walker (Alt. Elbow to Knee)", type: "W", locations: ["Parking Lot", "Stadium", "Beach"] },
+             { f3Name: "Hillbilly Walker", standardName: "Walking Calf Raises", type: "W", locations: ["Parking Lot", "Stadium", "Beach", "Hills"] },
+             { f3Name: "High Knees", standardName: "High Knees", type: "W", locations: ["Parking Lot", "Stadium", "Beach"] },
+             { f3Name: "Butt Kicker", standardName: "Butt Kicker", type: "W", locations: ["Parking Lot", "Stadium", "Beach"] },
+             { f3Name: "Overhead Clap", standardName: "Overhead Arm Claps", type: "W", locations: ["Parking Lot", "Stadium", "Beach"] },
+             { f3Name: "Seal Clap", standardName: "Seal Claps (Front Arm Claps)", type: "W", locations: ["Parking Lot", "Stadium", "Beach"] },
+             { f3Name: "Sun Gods", standardName: "Arm Circles (Forward/Backward)", type: "W", locations: ["Parking Lot", "Stadium", "Beach"] },
+             { f3Name: "Michael Phelps", standardName: "Wide Arm Swings", type: "W", locations: ["Parking Lot", "Stadium", "Beach"] },
+             { f3Name: "Good Morning", standardName: "Good Morning (Hamstring Stretch)", type: "W", locations: ["Parking Lot", "Stadium", "Beach"] },
+             { f3Name: "Windmill", standardName: "Windmill Stretch", type: "W", locations: ["Parking Lot", "Stadium", "Beach"] },
+             { f3Name: "Don Quixote", standardName: "Torso Twist Stretch (Windmill variation)", type: "W", locations: ["Parking Lot", "Stadium", "Beach"] }, // NEW
+
+             // Thang (Type: T)
+             { f3Name: "Merkin", standardName: "Push-up", type: "T", locations: ["Parking Lot", "Stadium", "Beach", "Stairs", "Walls"] },
+             { f3Name: "Diamond Merkin", standardName: "Diamond Push-up", type: "T", locations: ["Parking Lot", "Stadium", "Beach", "Stairs", "Walls"] },
+             { f3Name: "Wide Merkin", standardName: "Wide Push-up", type: "T", locations: ["Parking Lot", "Stadium", "Beach", "Stairs", "Walls"] },
+             { f3Name: "Staggered Merkin", standardName: "Staggered Hand Push-up", type: "T", locations: ["Parking Lot", "Stadium", "Beach", "Stairs", "Walls"] },
+             { f3Name: "Incline Merkin", standardName: "Incline Push-up", type: "T", locations: ["Stairs", "Walls", "Handrails"] },
+             { f3Name: "Decline Merkin", standardName: "Decline Push-up", type: "T", locations: ["Stairs", "Walls"] },
+             { f3Name: "Hand Release Merkin", standardName: "Hand Release Push-up", type: "T", locations: ["Parking Lot", "Stadium", "Beach"] },
+             { f3Name: "Abyss Merkins", standardName: "Deep Merkins (between benches/ledges)", type: "T", locations: ["Stadium", "Walls", "Handrails"] }, // NEW
+             { f3Name: "Flamingo Merkins", standardName: "One-Legged Merkin", type: "T", locations: ["Parking Lot", "Stadium", "Beach"] }, // NEW
+             { f3Name: "T-Merkins", standardName: "Merkin to Side Plank Rotation", type: "T", locations: ["Parking Lot", "Stadium", "Beach"] }, // NEW
+             { f3Name: "Squat", standardName: "Air Squat", type: "T", locations: ["Parking Lot", "Stadium", "Beach"] },
+             { f3Name: "Jump Squat", standardName: "Jump Squat", type: "T", locations: ["Parking Lot", "Stadium", "Beach"] },
+             { f3Name: "Sumo Squat", standardName: "Sumo Squat", type: "T", locations: ["Parking Lot", "Stadium", "Beach"] },
+             { f3Name: "Pistol Squat", standardName: "Single Leg Squat (Assisted/Unassisted)", type: "T", locations: ["Parking Lot", "Stadium", "Beach", "Walls"] },
+             { f3Name: "Monkey Humper", standardName: "Air Squat variation (w/ hip thrust)", type: "T", locations: ["Parking Lot", "Stadium", "Beach"] },
+             { f3Name: "Alternating Side Squats", standardName: "Side Step Squats (alternating)", type: "T", locations: ["Parking Lot", "Stadium", "Beach"] }, // NEW
+             { f3Name: "Lunge", standardName: "Lunge", type: "T", locations: ["Parking Lot", "Stadium", "Beach", "Hills"] },
+             { f3Name: "Reverse Lunge", standardName: "Reverse Lunge", type: "T", locations: ["Parking Lot", "Stadium", "Beach", "Hills"] },
+             { f3Name: "Split Jack", standardName: "Lunge Jumps", type: "T", locations: ["Parking Lot", "Stadium", "Beach"] },
+             { f3Name: "Bonnie Blairs", standardName: "Skater Jumps", type: "T", locations: ["Parking Lot", "Stadium", "Beach"] },
+             { f3Name: "Apollo Ohno", standardName: "Skater Jumps (side to side)", type: "T", locations: ["Parking Lot", "Stadium", "Beach"] }, // NEW
+             { f3Name: "Burpee", standardName: "Burpee", type: "T", locations: ["Parking Lot", "Stadium", "Beach"] },
+             { f3Name: "Eight-count Body Builder", standardName: "8-Count Burpee", type: "T", locations: ["Parking Lot", "Stadium", "Beach"] },
+             { f3Name: "Man Maker", standardName: "Man Maker (Burpee variation w/ weights)", type: "T", locations: ["Parking Lot"] }, // Requires weights
+             { f3Name: "Block Burpees", standardName: "Burpee using Coupon", type: "T", locations: ["Parking Lot"] }, // NEW (Coupon)
+             { f3Name: "Bear Crawl", standardName: "Bear Crawl", type: "T", locations: ["Parking Lot", "Stadium", "Beach", "Hills"] },
+             { f3Name: "Crab Walk", standardName: "Crab Walk", type: "T", locations: ["Parking Lot", "Stadium", "Beach"] },
+             { f3Name: "Sprint", standardName: "Sprint", type: "T", locations: ["Parking Lot", "Stadium", "Beach", "Hills"] },
+             { f3Name: "Bernie Sanders", standardName: "Backwards Run", type: "T", locations: ["Parking Lot", "Stadium", "Beach", "Hills"] },
+             { f3Name: "Hill Sprint", standardName: "Hill Sprint", type: "T", locations: ["Hills"] },
+             { f3Name: "Stair Climb / Run", standardName: "Stair Climb / Run", type: "T", locations: ["Stairs", "Stadium"] },
+             { f3Name: "Step Up", standardName: "Step Up", type: "T", locations: ["Stairs", "Walls"] },
+             { f3Name: "Box Jump / Ledge Jump", standardName: "Box Jump / Ledge Jump", type: "T", locations: ["Stairs", "Walls"] },
+             { f3Name: "Dips", standardName: "Tricep Dips", type: "T", locations: ["Stairs", "Handrails", "Walls"] },
+             { f3Name: "People's Chair", standardName: "Wall Sit", type: "T", locations: ["Walls", "Stadium"] },
+             { f3Name: "Balls to the Wall", standardName: "Handstand Hold (against wall)", type: "T", locations: ["Walls"] },
+             { f3Name: "Australian Pull-up", standardName: "Inverted Row / Aussie Pull-up", type: "T", locations: ["Handrails", "Stadium"] },
+             { f3Name: "Dirty Hookup", standardName: "Burpee + Pull-up (if bar avail)", type: "T", locations: ["Handrails", "Stadium"] }, // Requires pull-up bar
+             { f3Name: "Curls for the Girls", standardName: "Bicep Curls (Coupon)", type: "T", locations: ["Parking Lot"] }, // NEW (Coupon)
+
+             // Mary (Type: M)
+             { f3Name: "LBC", standardName: "Little Baby Crunch", type: "M", locations: ["Parking Lot", "Stadium", "Beach"] },
+             { f3Name: "American Hammer", standardName: "Russian Twist variation", type: "M", locations: ["Parking Lot", "Stadium", "Beach"] },
+             { f3Name: "Freddie Mercury", standardName: "Flutter Kicks variation", type: "M", locations: ["Parking Lot", "Stadium", "Beach"] },
+             { f3Name: "Box Cutter", standardName: "Reverse Crunch variation", type: "M", locations: ["Parking Lot", "Stadium", "Beach"] },
+             { f3Name: "Dolly", standardName: "Leg Hold (6 inches)", type: "M", locations: ["Parking Lot", "Stadium", "Beach"] },
+             { f3Name: "Hello Dolly", standardName: "Leg Spreaders (from Dolly)", type: "M", locations: ["Parking Lot", "Stadium", "Beach"] },
+             { f3Name: "Rosalita", standardName: "Leg Lifts (from Dolly)", type: "M", locations: ["Parking Lot", "Stadium", "Beach"] },
+             { f3Name: "Flutter Kicks", standardName: "Flutter Kicks", type: "M", locations: ["Parking Lot", "Stadium", "Beach"] },
+             { f3Name: "Plank", standardName: "Plank Hold", type: "M", locations: ["Parking Lot", "Stadium", "Beach"] },
+             { f3Name: "Plank Jack", standardName: "Plank Jack", type: "M", locations: ["Parking Lot", "Stadium", "Beach"] },
+             { f3Name: "Side Plank", standardName: "Side Plank Hold (L/R)", type: "M", locations: ["Parking Lot", "Stadium", "Beach"] },
+             { f3Name: "Superman", standardName: "Superman Hold", type: "M", locations: ["Parking Lot", "Stadium", "Beach"] },
+             { f3Name: "Pickle Pounder", standardName: "Heel Taps (lying down)", type: "M", locations: ["Parking Lot", "Stadium", "Beach"] },
+             { f3Name: "Gas Pumper", standardName: "Legs bent, push feet to sky", type: "M", locations: ["Parking Lot", "Stadium", "Beach"] },
+             { f3Name: "Crunchy Frog", standardName: "Crunchy Frog (Tuck Crunch)", type: "M", locations: ["Parking Lot", "Stadium", "Beach"] },
+             { f3Name: "Low Slow Flutter", standardName: "Slow Flutter Kicks (near ground)", type: "M", locations: ["Parking Lot", "Stadium", "Beach"] },
+             { f3Name: "Angle Grinder", standardName: "Plank Knee-to-Opposite-Hand + Merkin", type: "M", locations: ["Parking Lot", "Stadium", "Beach"] }, // NEW
+             { f3Name: "Heels to Heaven", standardName: "Leg Lift with Upward Heel Push", type: "M", locations: ["Parking Lot", "Stadium", "Beach"] }, // NEW
+             { f3Name: "Peter Parkers", standardName: "Plank Knee-to-Outside-Elbow", type: "M", locations: ["Parking Lot", "Stadium", "Beach"] }, // NEW
+        ];
+
+        // --- DOM Elements ---
+        const generateBtn = document.getElementById('generate-btn');
+        const copyBtn = document.getElementById('copy-btn');
+        const libraryToggleBtn = document.getElementById('library-toggle-btn');
+        const outputDiv = document.getElementById('workout-output');
+        const libraryOutputDiv = document.getElementById('exercise-library-output');
+        const fullLibraryListDiv = document.getElementById('full-library-list');
+        const durationSelector = document.getElementById('duration-selector');
+        const jsTooltip = document.getElementById('js-tooltip');
+
+        // --- Global State ---
+        let currentTooltipTarget = null;
+        let isLibraryVisible = false;
+
+        // --- Helper Functions ---
+
+        /** Shuffles an array in place */
+        function shuffleArray(array) { /* ... (no changes) ... */
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+         }
+
+        /** Gets unique exercises by type */
+        function getExercisesByType(type, count, excludeNames = []) { /* ... (no changes) ... */
+            const availableExercises = exercises.filter(ex =>
+                ex.type === type && !excludeNames.includes(ex.f3Name)
+            );
+            return shuffleArray([...availableExercises]).slice(0, count);
+        }
+
+        /** Returns HTML hint (Mary only) */
+        function getRepHint(type) { /* ... (no changes) ... */
+            if (type === 'M') return '<span class="text-xs text-gray-400 ml-1">(~1 min or count)</span>';
+            return '';
+         }
+
+        /** Formats exercise into clickable span */
+        function formatExercise(exercise) { /* ... (no changes) ... */
+            return `<span class="clickable-exercise inline-flex items-center group"
+                            data-type="${exercise.type}"
+                            data-current-exercise="${exercise.f3Name}"
+                            data-standard-name="${exercise.standardName}">
+                            ${exercise.f3Name}
+                            <span class="lucide ml-1 opacity-0 group-hover:opacity-80 transition-opacity text-blue-400">&#xea4c;</span>
+                        </span>`;
+         }
+
+        /** Creates Reps/Time controls HTML */
+        function createRepTimeControls() { /* ... (no changes) ... */
+            return `<span class="rep-time-controls">
+                        <button class="rep-time-btn" data-mode="default">Reps/Time</button>
+                        <input type="text" class="rep-time-input" placeholder="e.g., 15">
+                      </span>`;
+         }
+
+        /** Copies workout plan or library list */
+        async function copyWorkout() { /* ... (no changes) ... */
+            let textToCopy = "";
+            if (isLibraryVisible) {
+                textToCopy += "--- F3 Exercise Library ---\n";
+                const types = ['W', 'T', 'M'];
+                const typeNames = { W: 'Warmup', T: 'Thang', M: 'Mary' };
+                types.forEach(type => {
+                    const filtered = exercises.filter(ex => ex.type === type);
+                    if (filtered.length > 0) {
+                        textToCopy += `\n--- ${typeNames[type]} ---\n`;
+                        filtered.sort((a, b) => a.f3Name.localeCompare(b.f3Name));
+                        filtered.forEach(ex => { textToCopy += `- ${ex.f3Name} (${ex.standardName})\n`; });
+                    }
+                });
+            } else {
+                 outputDiv.querySelectorAll('div[data-section]').forEach(section => {
+                    const titleElement = section.querySelector('h2');
+                    const listElement = section.querySelector('ul');
+                    const paraElements = section.querySelectorAll('p');
+                    if (titleElement) { let titleText = titleElement.textContent || ''; const iconElement = titleElement.querySelector('.lucide'); if (iconElement && iconElement.textContent) { titleText = titleText.replace(iconElement.textContent, ''); } titleText = titleText.replace(/\(\~?\d+\+? mins\)/, '').replace(/ \(.*\)/, '').trim(); textToCopy += `\n--- ${titleText} ---\n`; }
+                    paraElements.forEach(para => { if (para.classList.contains('italic') || section.dataset.section === 'disclaimer') { textToCopy += `${para.innerText.trim()}\n`; } });
+                    if (listElement) {
+                        listElement.querySelectorAll('li').forEach(item => {
+                            const clickableSpan = item.querySelector('.clickable-exercise');
+                            let exerciseName = '';
+                            if (clickableSpan && clickableSpan.dataset.currentExercise) {
+                                exerciseName = clickableSpan.dataset.currentExercise;
+                                const inputField = item.querySelector('.rep-time-input');
+                                const repTimeBtn = item.querySelector('.rep-time-btn');
+                                let repTimeValue = '';
+                                if (inputField && inputField.value.trim() !== '') { const mode = repTimeBtn ? repTimeBtn.dataset.mode : 'default'; if (mode === 'reps') repTimeValue = ` (${inputField.value.trim()} reps)`; else if (mode === 'time') repTimeValue = ` (${inputField.value.trim()})`; else repTimeValue = ` (${inputField.value.trim()})`; }
+                                textToCopy += `- ${exerciseName}${repTimeValue}\n`;
+                            } else { const itemTextContent = item.textContent || ''; if (!item.querySelector('.rep-time-btn') && itemTextContent.trim()) { const cleanedText = itemTextContent.replace(/\(\~?\d+.*?\)/, '').trim(); textToCopy += `- ${cleanedText}\n`; } }
+                        });
+                    }
+                });
+            }
+            console.log('Attempting to copy:', textToCopy.trim());
+            try { await navigator.clipboard.writeText(textToCopy.trim()); const originalHTML = copyBtn.innerHTML; copyBtn.innerHTML = `<span class="lucide mr-2">&#xe877;</span> Copied!`; copyBtn.classList.add('copied-feedback'); copyBtn.classList.remove('copy-failed-feedback'); setTimeout(() => { copyBtn.innerHTML = originalHTML; copyBtn.classList.remove('copied-feedback'); }, 2000); }
+            catch (err) { console.error('Failed to copy text: ', err); const originalHTML = copyBtn.innerHTML; copyBtn.innerHTML = `<span class="lucide mr-2">&#xe851;</span> Failed!`; copyBtn.classList.add('copy-failed-feedback'); copyBtn.classList.remove('copied-feedback'); setTimeout(() => { copyBtn.innerHTML = originalHTML; copyBtn.classList.remove('copy-failed-feedback'); }, 3000); }
+        }
+
+        /** Replaces clicked exercise */
+        function replaceExercise(targetSpan) { /* ... (no changes) ... */
+             const type = targetSpan.dataset.type;
+             const currentExerciseName = targetSpan.dataset.currentExercise;
+             const listItem = targetSpan.closest('li');
+             if (!listItem) return;
+             const list = listItem.closest('ul');
+             if (!list) return;
+             const currentSectionExercises = [];
+             list.querySelectorAll('.clickable-exercise').forEach(span => { if (span !== targetSpan && span.dataset && span.dataset.currentExercise) { currentSectionExercises.push(span.dataset.currentExercise); } });
+             const replacementOptions = getExercisesByType(type, 1, currentSectionExercises);
+             if (replacementOptions.length > 0) { const newExercise = replacementOptions[0]; let newItemHTML = `<span>${formatExercise(newExercise)} ${getRepHint(newExercise.type)}</span>`; newItemHTML += createRepTimeControls(); listItem.innerHTML = newItemHTML; }
+             else { console.warn(`No replacement found for ${currentExerciseName} of type ${type}`); targetSpan.classList.add('no-replace-flash'); setTimeout(() => targetSpan.classList.remove('no-replace-flash'), 500); }
+         }
+
+        /** Hides tooltip */
+        function hideTooltip() { /* ... (no changes) ... */
+            if (currentTooltipTarget) { jsTooltip.classList.add('hidden', 'opacity-0'); jsTooltip.classList.remove('opacity-100'); currentTooltipTarget = null; }
+         }
+
+       /** Shows tooltip */
+        function showTooltip(targetSpan) { /* ... (no changes) ... */
+            const stdName = targetSpan.dataset.standardName || 'N/A'; const f3Name = targetSpan.dataset.currentExercise || 'N/A'; jsTooltip.textContent = `${f3Name}: ${stdName}`; currentTooltipTarget = targetSpan; const rect = targetSpan.getBoundingClientRect(); const tooltipRect = jsTooltip.getBoundingClientRect(); let top = rect.top + window.scrollY - tooltipRect.height - 8; let left = rect.left + window.scrollX + (rect.width / 2) - (jsTooltip.offsetWidth / 2); if (left < 0) left = 5; const rightEdge = left + jsTooltip.offsetWidth; if (rightEdge > window.innerWidth) left = window.innerWidth - jsTooltip.offsetWidth - 5; if (top < window.scrollY) top = rect.bottom + window.scrollY + 8; jsTooltip.style.top = `${top}px`; jsTooltip.style.left = `${left}px`; jsTooltip.classList.remove('hidden'); setTimeout(() => { jsTooltip.classList.remove('opacity-0'); jsTooltip.classList.add('opacity-100'); }, 10);
+        }
+
+        /** Populates and displays the grouped exercise library */
+        function displayFullExerciseList() { /* ... (no changes) ... */
+            fullLibraryListDiv.innerHTML = '';
+            const types = ['W', 'T', 'M'];
+            const typeInfo = { W: { name: 'Warmup', headerClass: 'warmup-header' }, T: { name: 'Thang', headerClass: 'thang-header' }, M: { name: 'Mary', headerClass: 'mary-header' } };
+            types.forEach(type => {
+                const filtered = exercises.filter(ex => ex.type === type);
+                if (filtered.length > 0) {
+                    const header = document.createElement('h3'); header.textContent = typeInfo[type].name; header.className = typeInfo[type].headerClass; fullLibraryListDiv.appendChild(header);
+                    filtered.sort((a, b) => a.f3Name.localeCompare(b.f3Name));
+                    const list = document.createElement('ul');
+                    filtered.forEach(ex => {
+                        const li = document.createElement('li'); li.style.breakInside = 'avoid';
+                        li.innerHTML = `<span><strong class="text-blue-300">${ex.f3Name}</strong><span class="text-sm text-gray-400 ml-2">(${ex.standardName})</span></span><span class="text-xs font-semibold px-2 py-0.5 rounded ${ ex.type === 'W' ? 'bg-green-700 text-green-100' : ex.type === 'T' ? 'bg-red-700 text-red-100' : ex.type === 'M' ? 'bg-yellow-700 text-yellow-100' : 'bg-gray-600 text-gray-200' }">${typeInfo[ex.type].name}</span>`;
+                        list.appendChild(li);
+                    });
+                    fullLibraryListDiv.appendChild(list);
+                }
+            });
+            libraryOutputDiv.classList.remove('hidden');
+        }
+
+        /** Toggles between workout view and library view */
+        function toggleLibraryView() { /* ... (no changes) ... */
+            isLibraryVisible = !isLibraryVisible; const buttonTextSpan = libraryToggleBtn.querySelector('.button-text');
+            if (isLibraryVisible) { if(buttonTextSpan) buttonTextSpan.textContent = 'Go Back'; libraryToggleBtn.classList.replace('from-teal-600', 'from-gray-600'); libraryToggleBtn.classList.replace('to-teal-700', 'to-gray-700'); libraryToggleBtn.classList.replace('hover:from-teal-700', 'hover:from-gray-700'); libraryToggleBtn.classList.replace('hover:to-teal-800', 'hover:to-gray-800'); libraryToggleBtn.querySelector('.lucide').innerHTML = '&#xe90d;'; outputDiv.classList.add('hidden'); durationSelector.classList.add('hidden'); generateBtn.classList.add('hidden'); displayFullExerciseList(); }
+            else { if(buttonTextSpan) buttonTextSpan.textContent = 'Exercise Library'; libraryToggleBtn.classList.replace('from-gray-600', 'from-teal-600'); libraryToggleBtn.classList.replace('to-gray-700', 'to-teal-700'); libraryToggleBtn.classList.replace('hover:from-gray-700', 'hover:from-teal-700'); libraryToggleBtn.classList.replace('hover:to-gray-800', 'hover:to-teal-800'); libraryToggleBtn.querySelector('.lucide').innerHTML = '&#xe8b6;'; libraryOutputDiv.classList.add('hidden'); outputDiv.classList.remove('hidden'); durationSelector.classList.remove('hidden'); generateBtn.classList.remove('hidden'); }
+        }
+
+
+        // --- Event Listeners ---
+
+        /** Handles Generate Workout button click */
+        generateBtn.addEventListener('click', () => { /* ... (no changes) ... */
+            if (isLibraryVisible) toggleLibraryView(); const duration = parseInt(document.querySelector('input[name="duration"]:checked').value); outputDiv.innerHTML = ''; const structure = { 45: { warmup: 5, thang1: 15, thang2: 15, mary: 5 }, 60: { warmup: 5, thang1: 20, thang2: 20, mary: 10 } }[duration];
+            let disclaimerHTML = `<div data-section="disclaimer" class="bg-gray-800/80 backdrop-blur-sm p-6 rounded-lg shadow-lg border"><h2 class="text-2xl font-semibold mb-3 border-b border-gray-600 pb-2 flex items-center"><span class="lucide mr-3 text-xl">&#xe851;</span> Disclaimer & Welcome</h2><p class="text-gray-300">Welcome to F3! I am not a professional. You are participating at your own risk. Modify exercises as needed. Push yourself, but don't hurt yourself. Let's go!</p></div>`;
+            let warmupHTML = `<div data-section="warmup" class="bg-gray-800/80 backdrop-blur-sm p-6 rounded-lg shadow-lg border"><h2 class="text-2xl font-semibold mb-3 border-b border-gray-600 pb-2 flex items-center"><span class="lucide mr-3 text-xl">&#xe944;</span> COP: Warm-up (~${structure.warmup} mins)</h2><ul class="list-disc list-inside space-y-2 text-gray-200 pl-2">`; const warmupExercises = getExercisesByType('W', 3); warmupExercises.forEach(ex => { warmupHTML += `<li class="exercise-list-item"><span>${formatExercise(ex)}</span> ${createRepTimeControls()}</li>`; }); warmupHTML += `</ul></div>`; outputDiv.innerHTML += disclaimerHTML + warmupHTML;
+            let usedThangExercises = []; const thang1Exercises = getExercisesByType('T', 4); usedThangExercises = thang1Exercises.map(ex => ex.f3Name); let thang1HTML = `<div data-section="thang1" class="bg-gray-800/80 backdrop-blur-sm p-6 rounded-lg shadow-lg border"><h2 class="text-2xl font-semibold mb-3 border-b border-gray-600 pb-2 flex items-center"><span class="lucide mr-3 text-xl">&#xe91f;</span> The Thang 1 (~${structure.thang1} mins)</h2><p class="text-gray-400 italic mb-3">Q's choice: Perform as a circuit, AMRAP, EMOM, or travel between stations.</p><ul class="list-disc list-inside space-y-2 text-gray-200 pl-2">`; thang1Exercises.forEach(ex => { thang1HTML += `<li class="exercise-list-item"><span>${formatExercise(ex)}</span> ${createRepTimeControls()}</li>`; }); thang1HTML += `<li class="exercise-list-item"><span>Mosey / Active Recovery (e.g., jog lap, high knees)</span></li></ul></div>`; outputDiv.innerHTML += thang1HTML;
+            const thang2Exercises = getExercisesByType('T', 4, usedThangExercises); let thang2HTML = `<div data-section="thang2" class="bg-gray-800/80 backdrop-blur-sm p-6 rounded-lg shadow-lg border"><h2 class="text-2xl font-semibold mb-3 border-b border-gray-600 pb-2 flex items-center"><span class="lucide mr-3 text-xl">&#xe91f;</span> The Thang 2 (~${structure.thang2} mins)</h2><p class="text-gray-400 italic mb-3">Continue the work. Consider partner exercises or different timing.</p><ul class="list-disc list-inside space-y-2 text-gray-200 pl-2">`; thang2Exercises.forEach(ex => { thang2HTML += `<li class="exercise-list-item"><span>${formatExercise(ex)}</span> ${createRepTimeControls()}</li>`; }); thang2HTML += `<li class="exercise-list-item"><span>Mosey back to Start Point / Cooldown Jog</span></li></ul></div>`; outputDiv.innerHTML += thang2HTML;
+            const maryExercises = getExercisesByType('M', 4); let maryHTML = `<div data-section="mary" class="bg-gray-800/80 backdrop-blur-sm p-6 rounded-lg shadow-lg border"><h2 class="text-2xl font-semibold mb-3 border-b border-gray-600 pb-2 flex items-center"><span class="lucide mr-3 text-xl">&#xe804;</span> 6 Minutes of Mary (6MOM) (~${structure.mary} mins)</h2><p class="text-gray-400 italic mb-3">Focus on core work. Q calls exercise & count/time, PAX repeats.</p><ul class="list-disc list-inside space-y-2 text-gray-200 pl-2">`; maryExercises.forEach(ex => { maryHTML += `<li class="exercise-list-item"><span>${formatExercise(ex)} ${getRepHint(ex.type)}</span> ${createRepTimeControls()}</li>`; }); maryHTML += `</ul></div>`; outputDiv.innerHTML += maryHTML;
+            outputDiv.innerHTML += `<div data-section="cot" class="bg-gray-800/80 backdrop-blur-sm p-6 rounded-lg shadow-lg border"><h2 class="text-2xl font-semibold mb-3 border-b border-gray-600 pb-2 flex items-center"><span class="lucide mr-3 text-xl">&#xe864;</span> CoT: Count-o-Rama, Name-o-Rama, Announcements, Ball of Man</h2><p class="text-gray-300">Finish strong together. Count off, share names/F3 names, announcements, and close with the Ball of Man.</p></div>`; copyBtn.disabled = false;
+        });
+
+        /** Handles clicks in workout output */
+        outputDiv.addEventListener('click', (event) => { /* ... (no changes) ... */
+            const target = event.target; if (target.classList.contains('rep-time-btn')) { const currentMode = target.dataset.mode || 'default'; const inputField = target.nextElementSibling; if (currentMode === 'default' || currentMode === 'time') { target.textContent = 'Reps'; target.dataset.mode = 'reps'; if (inputField) inputField.placeholder = 'e.g., 15 reps'; } else if (currentMode === 'reps') { target.textContent = 'Time'; target.dataset.mode = 'time'; if (inputField) inputField.placeholder = 'e.g., 60s'; } return; } const clickableSpan = target.closest('.clickable-exercise'); if (clickableSpan) { if (currentTooltipTarget === clickableSpan) hideTooltip(); else showTooltip(clickableSpan); } else { hideTooltip(); }
+        });
+
+        /** Handles double-clicks in workout output */
+        outputDiv.addEventListener('dblclick', (event) => { /* ... (no changes) ... */
+            const clickableSpan = event.target.closest('.clickable-exercise'); if (clickableSpan) { hideTooltip(); replaceExercise(clickableSpan); }
+        });
+
+        /** Handles tooltip hiding */
+        let hideTooltipTimeout; /* ... (no changes) ... */
+        document.addEventListener('mouseout', (event) => { const relatedTarget = event.relatedTarget; const isLeavingTargetArea = currentTooltipTarget && !currentTooltipTarget.contains(relatedTarget); const isLeavingTooltipArea = !jsTooltip.contains(relatedTarget); if (currentTooltipTarget && isLeavingTargetArea && isLeavingTooltipArea) { clearTimeout(hideTooltipTimeout); hideTooltipTimeout = setTimeout(hideTooltip, 150); } }); jsTooltip.addEventListener('mouseover', () => clearTimeout(hideTooltipTimeout)); outputDiv.addEventListener('mouseover', (event) => { const clickableSpan = event.target.closest('.clickable-exercise'); if (clickableSpan && clickableSpan === currentTooltipTarget) { clearTimeout(hideTooltipTimeout); } });
+
+        /** Handles Copy button click */
+        copyBtn.addEventListener('click', copyWorkout);
+
+        /** Handles Library Toggle button click */
+        libraryToggleBtn.addEventListener('click', toggleLibraryView);
+
+    </script>
+</body>
+</html>
